@@ -15,6 +15,8 @@ from aiopaysell.webhook import (
 from .session import AiohttpSession
 
 if TYPE_CHECKING:
+    from types import TracebackType
+
     from aiopaysell._methods import PaysellMethod
     from aiopaysell.client.session import BaseSession
     from aiopaysell.types import _PaysellType
@@ -31,6 +33,9 @@ class Paysell(Methods, WebhookHandler, PollingManager):
     :param webhook_manager: a webhook manager
         (:class:`aiopaysell.webhook.AiohttpManager`, etc.) to receive
         updates through your web server.
+    :param webhook_secret: the webhook secret shown once when you created
+        the API key — a different value from ``token``. Required whenever
+        ``webhook_manager`` is set; without it, no delivery can be verified.
     :param signature_header: header carrying the webhook HMAC signature.
         See :data:`aiopaysell.webhook.DEFAULT_SIGNATURE_HEADER`.
     :param timestamp_header: header carrying the unix-seconds timestamp
@@ -50,6 +55,7 @@ class Paysell(Methods, WebhookHandler, PollingManager):
         session: type["BaseSession"] = AiohttpSession,
         timeout: float = 30,
         webhook_manager: "WebhookManager | None" = None,
+        webhook_secret: str | None = None,
         signature_header: str = DEFAULT_SIGNATURE_HEADER,
         timestamp_header: str = DEFAULT_TIMESTAMP_HEADER,
         timestamp_tolerance: float = DEFAULT_TIMESTAMP_TOLERANCE,
@@ -62,6 +68,7 @@ class Paysell(Methods, WebhookHandler, PollingManager):
         WebhookHandler.__init__(
             self,
             webhook_manager,
+            webhook_secret,
             signature_header,
             timestamp_header,
             timestamp_tolerance,
@@ -88,6 +95,21 @@ class Paysell(Methods, WebhookHandler, PollingManager):
             method.build_path(),
         )
         return await self.session.request(self._token, self, method)
+
+    async def close(self) -> None:
+        """Close the underlying HTTP session and release its connections."""
+        await self.session.close()
+
+    async def __aenter__(self) -> "Paysell":
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: "type[BaseException] | None",
+        exc: BaseException | None,
+        traceback: "TracebackType | None",
+    ) -> None:
+        await self.close()
 
     def include_router(self, router: "WebhookRouter | PollingRouter") -> None:
         """

@@ -7,6 +7,8 @@ app = FastAPI()
 pay = Paysell(
     "sk_live_YOUR_KEY",
     webhook_manager=FastAPIManager(app, path="/webhooks/paysell"),
+    # Shown once when the key was created — a different value from the key itself.
+    webhook_secret="YOUR_WEBHOOK_SECRET",
 )
 
 

@@ -60,17 +60,25 @@ class WebhookHandler:
     :class:`aiopaysell.polling.PollingManager`.
     """
 
-    _token: str
     _kwargs: dict[str, object]
 
     def __init__(
         self,
         manager: "WebhookManager | None",
+        webhook_secret: str | None,
         signature_header: str = DEFAULT_SIGNATURE_HEADER,
         timestamp_header: str = DEFAULT_TIMESTAMP_HEADER,
         timestamp_tolerance: float = DEFAULT_TIMESTAMP_TOLERANCE,
     ) -> None:
+        if manager is not None and webhook_secret is None:
+            msg = (
+                "webhook_secret is required when webhook_manager is set. "
+                "It's the secret shown once when you created the API key — "
+                "not the key itself. Pass Paysell(..., webhook_secret=...)."
+            )
+            raise ValueError(msg)
         self._webhook_router = WebhookRouter()
+        self._webhook_secret = webhook_secret
         self._signature_header = signature_header
         self._timestamp_header = timestamp_header
         self._timestamp_tolerance = timestamp_tolerance
@@ -104,6 +112,13 @@ class WebhookHandler:
         :return: ``True`` if the signature is present, correct, and its
             timestamp is within :attr:`_timestamp_tolerance`.
         """
+        if self._webhook_secret is None:
+            loggers.webhook.error(
+                "Webhook is not handled: no webhook_secret configured. "
+                "Pass Paysell(..., webhook_secret=...) — it's the secret "
+                "shown once when the API key was created, not the key itself.",
+            )
+            return False
         signature = self._header(headers, self._signature_header)
         timestamp = self._header(headers, self._timestamp_header)
         if signature is None or timestamp is None:
@@ -112,7 +127,7 @@ class WebhookHandler:
             body,
             signature,
             timestamp,
-            self._token,
+            self._webhook_secret,
             tolerance=self._timestamp_tolerance,
         )
 

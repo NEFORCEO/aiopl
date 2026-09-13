@@ -80,6 +80,12 @@ class BaseSession(ABC):
     ) -> "_PaysellType":
         """Make an HTTP request."""
 
+    async def close(self) -> None:  # noqa: B027 - optional hook, not every session holds resources
+        """Release any resources held by this session (connections, etc.).
+
+        No-op by default; override if your session holds something to close.
+        """
+
     def _check_response(
         self,
         client: "aiopaysell.Paysell",

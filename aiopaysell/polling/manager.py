@@ -1,5 +1,6 @@
 import asyncio
 import warnings
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from aiopaysell import loggers
@@ -15,7 +16,10 @@ if TYPE_CHECKING:
     from aiopaysell.types import Invoice
 
 _TERMINAL_PAID = (InvoiceStatus.PAID, InvoiceStatus.OVERPAID)
-_STOP = (*_TERMINAL_PAID, InvoiceStatus.EXPIRED, InvoiceStatus.CANCELLED)
+_STOP_STATUSES = (*_TERMINAL_PAID, InvoiceStatus.EXPIRED, InvoiceStatus.CANCELLED)
+
+UNDERPAID_GRACE = timedelta(hours=24)
+"""How much longer an ``underpaid`` invoice keeps its address, per the docs."""
 
 
 class PollingManager(BasePollingManager):
@@ -32,7 +36,7 @@ class PollingManager(BasePollingManager):
     def __init__(self, config: PollingConfig) -> None:
         self._polling_router = PollingRouter()
         self._invoice_tasks: dict[str, PollingTask] = {}
-        self._timeout = config.timeout
+        self._fixed_timeout = config.timeout
         self._delay = config.delay
 
     @property
@@ -42,7 +46,7 @@ class PollingManager(BasePollingManager):
 
     @property
     def invoice_expired(self) -> "EventObserver":
-        """Fires when a tracked invoice's payment window closes unpaid."""
+        """Fires when a tracked invoice's status actually becomes ``expired``."""
         return self._polling_router.invoice_expired
 
     @property
@@ -51,31 +55,48 @@ class PollingManager(BasePollingManager):
         return self._polling_router.invoice_cancelled
 
     def _poll_invoice(self, invoice: "Invoice", **kwargs: object) -> None:
-        self._invoice_tasks[invoice.invoice_id] = PollingTask(
-            invoice,
-            self._timeout,
-            kwargs,
-        )
+        if self._fixed_timeout is None:
+            deadline = invoice.expires_at
+        else:
+            deadline = datetime.now(UTC) + timedelta(seconds=self._fixed_timeout)
+        self._invoice_tasks[invoice.invoice_id] = PollingTask(invoice, deadline, kwargs)
 
     async def _handle_invoice(self, invoice: "Invoice") -> None:
         task = self._invoice_tasks.get(invoice.invoice_id)
         if task is None:
             return
-        task.timeout -= self._delay
         status = invoice.status
-        expired_by_timeout = task.timeout <= 0
 
-        if status in _STOP or expired_by_timeout:
+        if status == InvoiceStatus.UNDERPAID:
+            # The API keeps an underpaid invoice's address for 24h past
+            # expires_at — extend the deadline to match, once.
+            task.deadline = max(task.deadline, invoice.expires_at + UNDERPAID_GRACE)
+
+        timed_out = datetime.now(UTC) >= task.deadline
+
+        if status in _STOP_STATUSES or timed_out:
             del self._invoice_tasks[invoice.invoice_id]
 
         if status in _TERMINAL_PAID:
             event = "invoice_paid"
         elif status == InvoiceStatus.CANCELLED:
             event = "invoice_cancelled"
-        elif status == InvoiceStatus.EXPIRED or expired_by_timeout:
+        elif status == InvoiceStatus.EXPIRED:
             event = "invoice_expired"
+        elif timed_out:
+            # We gave up watching, but the invoice itself isn't actually
+            # expired server-side (still pending/underpaid) — say so rather
+            # than firing invoice_expired for a status that isn't expired.
+            loggers.polling.warning(
+                "Gave up polling invoice_id=%s: still %s after the deadline. "
+                "Check aiopaysell.Paysell.get_invoice() directly, or raise "
+                "PollingConfig.timeout.",
+                invoice.invoice_id,
+                status,
+            )
+            return
         else:
-            return  # still pending/underpaid — keep watching
+            return  # still pending/underpaid, not timed out — keep watching
 
         if await self._polling_router.propagate_event(
             invoice,

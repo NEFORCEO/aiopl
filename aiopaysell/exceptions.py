@@ -135,6 +135,20 @@ class DeserializationError(PaysellError):
         return f"{self.method.__http_method__} {path}: {self.message}"
 
 
+class NetworkError(PaysellError):
+    """Raised when the request itself fails — DNS, connection refused, TLS, etc."""
+
+    def __init__(self, method: "PaysellMethod", cause: Exception) -> None:
+        self.method = method
+        self.cause = cause
+
+    def __str__(self) -> str:
+        return (
+            f"{self.method.__http_method__} {self.method.build_path()} "
+            f"failed: {self.cause!r}"
+        )
+
+
 class APITimeoutError(PaysellError):
     """Raised when a request exceeds the configured timeout."""
 

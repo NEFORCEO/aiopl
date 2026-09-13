@@ -9,11 +9,9 @@
 [![Code linter: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Checked with mypy](https://img.shields.io/badge/mypy-checked-blue)](https://mypy-lang.org/)
 
-**aiopaysell** is an async Python client for the [Paysell](https://pay.saleprofit.dev/docs) payment API — accept TON & USDT on TON with invoices, webhooks, and a polling fallback.
+**aiopaysell** is an async Python client for the [Paysell](https://paysell.me/docs) payment API — accept TON & USDT on TON with invoices, webhooks, and a polling fallback.
 
-> ## [API documentation](https://pay.saleprofit.dev/docs)
->
-> ## [Repository](https://github.com/NEFORCEO/aiopl)
+> ## [API documentation](https://paysell.me/docs)
 
 ## Install
 
@@ -42,6 +40,10 @@ if __name__ == "__main__":
 
 ## Webhook example
 
+`webhook_secret` is **not** your API key — it's a separate secret shown once,
+next to the key, when you create it. Without it no delivery can be verified,
+and `payment_credited` never fires.
+
 ```python
 from aiohttp import web
 from magic_filter import F
@@ -52,12 +54,18 @@ app = web.Application()
 pay = Paysell(
     "sk_live_YOUR_KEY",
     webhook_manager=AiohttpManager(app, path="/webhooks/paysell"),
+    webhook_secret="YOUR_WEBHOOK_SECRET",
 )
 
 
 @pay.payment_credited(F.status == "paid")
 async def on_paid(payment):
-    print(f"order {payment.order_id} paid, {payment.credited} credited")
+    print(f"order {payment.order_id} paid, {payment.credited_int} credited")
+
+
+@pay.payment_rejected()
+async def on_rejected(payment):
+    print(f"order {payment.order_id}: deposit rejected ({payment.reason})")
 
 
 if __name__ == "__main__":
@@ -77,17 +85,20 @@ invoice.poll()
 await pay.start_polling()
 ```
 
-Webhook and polling events live on separate routers (`payment_credited` vs. `invoice_paid`/`invoice_expired`/`invoice_cancelled`) — running both is safe, just make handlers idempotent since the same payment could be reported by each.
+Webhook and polling events live on separate routers (`payment_credited`/`payment_rejected` vs. `invoice_paid`/`invoice_expired`/`invoice_cancelled`) — running both is safe, just make handlers idempotent since the same payment could be reported by each.
 
-More in `examples/`: FastAPI webhooks, a standalone router for splitting handlers across modules, polling.
+Need your own checkout page instead of redirecting to `payment_url`? `pay.get_public_invoice(invoice_id)` reads the same unauthenticated endpoint the hosted page uses — no API key needed.
+
+More in `examples/`: FastAPI webhooks, a standalone router for splitting handlers across modules, polling, a public-invoice checkout.
 
 ## Good to know
 
-- **`create_invoice(amount=...)` takes human units** — `5`, `5.5`, `Decimal("5.5")` — and converts them to the wire format for you. Pass a `str` if you already have the raw smallest-unit value and want it sent through unchanged. Don't mix the two up: `amount=5` is always 5 whole coins, never smallest units.
-- **The wire format itself is smallest-unit strings, never floats** — `Invoice.amount` on a response stays a `str` for that reason; use `Invoice.amount_int` for an `int`.
+- **`webhook_secret` is required for webhooks to work at all.** It's shown once when the key is created, separately from the key itself. Passing `webhook_manager=` without it raises immediately; leaving both out (polling-only usage) is fine.
+- **`create_invoice(amount=...)` takes normal units, like on an exchange** — `5`, `1.5`, `Decimal("1.5")` — and formats them for you (decimal places validated against the coin). Pass a `str` if you already have it formatted and want it sent through unchanged.
+- **The REST API and the webhook body disagree about units, on purpose.** `Invoice.amount` is normal units, exactly what you sent; `Invoice.amount_minor` is the same as an integer smallest-unit string — use `Invoice.amount_minor_int`. Webhook payloads (`PaymentCredited.amount`, `.credited`, `.fee`) are smallest-unit integers throughout — use the matching `*_int` properties.
 - **`idempotency_key`** is yours to generate and persist per order; the library won't invent one for you, since its entire value is surviving a retry with the *same* key.
-- **The webhook signature header isn't named in the docs** — only the algorithm is (HMAC-SHA256 hex, `sha256=` prefix, raw body). `aiopaysell` defaults to `X-Paysell-Signature`; confirm the real name in your shop's settings and pass `Paysell(..., signature_header="...")` if it differs.
-- **There's a single network** (`https://pay.saleprofit.dev`) — no test/live split to configure, the client always talks to it.
+- **The webhook signature is `HMAC-SHA256(secret, "{timestamp}.{raw_body}")`**, header names `X-Paysell-Signature` / `X-Paysell-Timestamp`. `aiopaysell` verifies both, including a ±5 minute replay window, before any handler runs.
+- **There's a single network** (`https://paysell.me`) — no test/live split to configure, the client always talks to it.
 
 ## Errors
 
@@ -97,7 +108,7 @@ More in `examples/`: FastAPI webhooks, a standalone router for splitting handler
 | 404 | `NotFoundError` |
 | 409 | `ConflictError` |
 | 422 | `InvalidRequestError` |
-| 429 | `RateLimitError` |
+| 429 | `RateLimitError` (`.retry_after` holds the `Retry-After` header, in seconds, when present) |
 | 502 | `BadGatewayError` (safe to retry with the same `idempotency_key`) |
 
 All inherit `aiopaysell.exceptions.APIError` → `PaysellError`.
@@ -105,4 +116,3 @@ All inherit `aiopaysell.exceptions.APIError` → `PaysellError`.
 ## License
 
 MIT
-# aiopl

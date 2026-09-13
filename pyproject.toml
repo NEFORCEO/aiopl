@@ -1,0 +1,82 @@
+[project]
+name = "aiopaysell"
+description = "Async Python client for the Paysell (TON & USDT) payment API."
+authors = [{ name = "NEFOR", email = "nikita@paysell.me" }]
+license = "MIT"
+requires-python = ">=3.10"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+    "Framework :: AsyncIO",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Office/Business :: Financial",
+    "Typing :: Typed",
+]
+keywords = [
+    "paysell",
+    "ton",
+    "usdt",
+    "crypto payments",
+    "payment gateway",
+    "invoices",
+    "webhooks",
+    "asyncio",
+]
+readme = "README.md"
+dependencies = [
+    "aiohttp>=3.9.0",
+    "certifi>=2023.7.22",
+    "magic-filter>=1.0.12",
+    "pydantic>=2.4.1",
+]
+dynamic = ["version"]
+
+[tool.hatch.version]
+path = "aiopaysell/__meta__.py"
+
+[project.optional-dependencies]
+fastapi = ["fastapi"]
+test = ["pytest", "pytest-asyncio"]
+docs = [
+    "furo",
+    "sphinx-autodoc-typehints",
+    "sphinx_copybutton",
+    "sphinxext-opengraph",
+]
+
+[project.urls]
+Repository = "https://github.com/NEFORCEO/aiopl"
+Documentation = "https://aiopaysell.readthedocs.io/"
+
+[tool.ruff]
+line-length = 88
+indent-width = 4
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ALL"]
+"examples/*" = ["ALL"]
+"docs/*" = ["ALL"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.10"
+exclude = ["tests", "examples", "docs"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

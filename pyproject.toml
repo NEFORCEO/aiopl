@@ -42,6 +42,7 @@ path = "aiopaysell/__meta__.py"
 [project.optional-dependencies]
 fastapi = ["fastapi"]
 test = ["pytest", "pytest-asyncio"]
+dev = ["ruff", "mypy", "pytest", "pytest-asyncio", "fastapi"]
 docs = [
     "furo",
     "sphinx-autodoc-typehints",

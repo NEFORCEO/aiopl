@@ -1,5 +1,5 @@
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -21,8 +21,8 @@ def _invoice(pay: Paysell, **overrides: object) -> Invoice:
         "amount": "1.5",
         "amount_minor": "1500000000",
         "status": "pending",
-        "expires_at": datetime.now(UTC) + timedelta(hours=2),
-        "created_at": datetime.now(UTC),
+        "expires_at": datetime.now(timezone.utc) + timedelta(hours=2),
+        "created_at": datetime.now(timezone.utc),
     }
     data.update(overrides)
     return Invoice.model_validate(data, context={"client": pay})
@@ -32,7 +32,7 @@ async def test_timed_out_but_still_pending_does_not_fire_expired(client: Paysell
     """The exact bug: giving up on a poll deadline must not claim the invoice expired."""
     invoice = _invoice(
         client,
-        expires_at=datetime.now(UTC) - timedelta(seconds=1),  # already past deadline
+        expires_at=datetime.now(timezone.utc) - timedelta(seconds=1),  # already past deadline
         status="pending",
     )
     client._poll_invoice(invoice)  # noqa: SLF001
@@ -67,7 +67,7 @@ async def test_actually_expired_status_fires_expired(client: Paysell) -> None:
 
 
 async def test_deadline_defaults_to_invoice_expires_at(client: Paysell) -> None:
-    expires_at = datetime.now(UTC) + timedelta(minutes=90)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=90)
     invoice = _invoice(client, expires_at=expires_at)
     client._poll_invoice(invoice)  # noqa: SLF001
     task = client._invoice_tasks["abc-123"]  # noqa: SLF001
@@ -75,7 +75,7 @@ async def test_deadline_defaults_to_invoice_expires_at(client: Paysell) -> None:
 
 
 async def test_underpaid_extends_deadline_by_24h(client: Paysell) -> None:
-    expires_at = datetime.now(UTC) + timedelta(minutes=5)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
     invoice = _invoice(client, expires_at=expires_at, status="pending")
     client._poll_invoice(invoice)  # noqa: SLF001
 
@@ -88,8 +88,8 @@ async def test_underpaid_extends_deadline_by_24h(client: Paysell) -> None:
 
 async def test_fixed_timeout_override_still_works() -> None:
     pay = Paysell("sk_live_x", polling_config=PollingConfig(delay=0, timeout=60))
-    before = datetime.now(UTC)
-    invoice = _invoice(pay, expires_at=datetime.now(UTC) + timedelta(hours=2))
+    before = datetime.now(timezone.utc)
+    invoice = _invoice(pay, expires_at=datetime.now(timezone.utc) + timedelta(hours=2))
     pay._poll_invoice(invoice)  # noqa: SLF001
     task = pay._invoice_tasks["abc-123"]  # noqa: SLF001
     assert before + timedelta(seconds=59) <= task.deadline <= before + timedelta(seconds=61)

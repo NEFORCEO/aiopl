@@ -35,6 +35,22 @@ jobs:
         if: steps.check_tag.outputs.exists == 'false'
         uses: astral-sh/setup-uv@v5
 
+      - name: Install the project (with dev tooling)
+        if: steps.check_tag.outputs.exists == 'false'
+        run: uv sync --extra dev
+
+      - name: Ruff
+        if: steps.check_tag.outputs.exists == 'false'
+        run: uv run ruff check .
+
+      - name: Mypy
+        if: steps.check_tag.outputs.exists == 'false'
+        run: uv run mypy aiopaysell
+
+      - name: Pytest
+        if: steps.check_tag.outputs.exists == 'false'
+        run: uv run pytest tests/ -q
+
       - name: Build distributions
         if: steps.check_tag.outputs.exists == 'false'
         run: uv build

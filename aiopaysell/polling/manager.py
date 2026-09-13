@@ -1,6 +1,6 @@
 import asyncio
 import warnings
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 from aiopaysell import loggers
@@ -58,7 +58,8 @@ class PollingManager(BasePollingManager):
         if self._fixed_timeout is None:
             deadline = invoice.expires_at
         else:
-            deadline = datetime.now(UTC) + timedelta(seconds=self._fixed_timeout)
+            now = datetime.now(timezone.utc)
+            deadline = now + timedelta(seconds=self._fixed_timeout)
         self._invoice_tasks[invoice.invoice_id] = PollingTask(invoice, deadline, kwargs)
 
     async def _handle_invoice(self, invoice: "Invoice") -> None:
@@ -72,7 +73,7 @@ class PollingManager(BasePollingManager):
             # expires_at — extend the deadline to match, once.
             task.deadline = max(task.deadline, invoice.expires_at + UNDERPAID_GRACE)
 
-        timed_out = datetime.now(UTC) >= task.deadline
+        timed_out = datetime.now(timezone.utc) >= task.deadline
 
         if status in _STOP_STATUSES or timed_out:
             del self._invoice_tasks[invoice.invoice_id]

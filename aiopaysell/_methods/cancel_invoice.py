@@ -1,5 +1,6 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
+from annotated_doc import Doc
 from pydantic import Field
 
 from aiopaysell.types import Invoice
@@ -25,7 +26,10 @@ class CancelInvoice:
 
     async def cancel_invoice(  # type: ignore[misc]
         self: "Paysell",
-        invoice: "str | Invoice",
+        invoice: Annotated[
+            "str | Invoice",
+            Doc("An invoice id, or an `aiopaysell.types.Invoice`."),
+        ],
     ) -> Invoice:
         """
         Cancel an unpaid invoice early and release its address.
@@ -33,10 +37,12 @@ class CancelInvoice:
         Use this when the customer abandons checkout — addresses are a
         finite resource, and returning them keeps the pool healthy.
 
-        :param invoice: an invoice id, or an :class:`aiopaysell.types.Invoice`.
-        :return: the cancelled :class:`aiopaysell.types.Invoice`.
-        :raise aiopaysell.exceptions.ConflictError: the invoice is already paid.
-        :raise aiopaysell.exceptions.NotFoundError: unknown id, or another shop's.
+        Returns:
+            The cancelled `aiopaysell.types.Invoice`.
+
+        Raises:
+            aiopaysell.exceptions.ConflictError: the invoice is already paid.
+            aiopaysell.exceptions.NotFoundError: unknown id, or another shop's.
         """
         invoice_id = invoice.invoice_id if isinstance(invoice, Invoice) else invoice
         return await self(self.CancelInvoiceMethod(invoice_id=invoice_id))

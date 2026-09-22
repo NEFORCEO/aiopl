@@ -30,6 +30,7 @@ keywords = [
 readme = "README.md"
 dependencies = [
     "aiohttp>=3.9.0",
+    "annotated-doc>=0.0.4",
     "certifi>=2023.7.22",
     "magic-filter>=1.0.12",
     "pydantic>=2.4.1",

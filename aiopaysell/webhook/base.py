@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Annotated, Generic, TypeVar
 
+from annotated_doc import Doc
 from pydantic import BaseModel, ValidationError
 
 from aiopaysell import loggers
@@ -42,7 +43,17 @@ class WebhookManager(ABC, Generic[_APP]):
     here, inherit this class and implement :meth:`register_handler`.
     """
 
-    def __init__(self, app: _APP, path: str = "/paysell/webhook") -> None:
+    def __init__(
+        self,
+        app: Annotated[
+            _APP,
+            Doc("The web framework application or router to wire the route into."),
+        ],
+        path: Annotated[
+            str,
+            Doc("The path to register the webhook route at."),
+        ] = "/paysell/webhook",
+    ) -> None:
         self._app = app
         self._path = path
 
@@ -133,21 +144,26 @@ class WebhookHandler:
 
     async def feed_update(
         self,
-        body: bytes,
-        headers: "Mapping[str, str]",
-        **kwargs: object,
+        body: Annotated[
+            bytes,
+            Doc(
+                "Raw request body, exactly as received — do not re-serialise "
+                "it before calling this, the signature check needs the original bytes."
+            ),
+        ],
+        headers: Annotated["Mapping[str, str]", Doc("Request headers.")],
+        **kwargs: Annotated[
+            object,
+            Doc("Extra data forwarded to the matching handler."),
+        ],
     ) -> bool:
         """
         Verify, parse and dispatch one webhook delivery.
 
-        :param body: raw request body, exactly as received — do not
-            re-serialise it before calling this, the signature check needs
-            the original bytes.
-        :param headers: request headers.
-        :param kwargs: extra data forwarded to the matching handler.
-        :return: ``True`` if the signature was valid (whether or not a
-            handler matched); answer the caller with a 2xx in that case so
-            the provider doesn't retry.
+        Returns:
+            `True` if the signature was valid (whether or not a handler
+            matched); answer the caller with a 2xx in that case so the
+            provider doesn't retry.
         """
         if not self._check_signature(body, headers):
             loggers.webhook.warning(

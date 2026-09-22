@@ -1,23 +1,75 @@
 <p align="center">
-  <h1 align="center">aiopaysell</h1>
+  <strong><em>Async Python client for Paysell — accept TON & USDT with invoices, webhooks, and a polling fallback.</em></strong>
 </p>
 
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Pydantic v2](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pydantic/pydantic/main/docs/badge/v2.json)](https://pydantic.dev)
-[![Aiohttp](https://img.shields.io/badge/aiohttp-v3-2c5bb4?logo=aiohttp)](https://docs.aiohttp.org/en/stable/)
-[![Code linter: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Checked with mypy](https://img.shields.io/badge/mypy-checked-blue)](https://mypy-lang.org/)
+<p align="center">
+<a href="https://github.com/paysell/aiopl/actions/workflows/release.yml" target="_blank">
+    <img src="https://github.com/paysell/aiopl/actions/workflows/release.yml/badge.svg" alt="Release">
+</a>
+<a href="https://pypi.org/project/aiopaysell" target="_blank">
+    <img src="https://img.shields.io/pypi/v/aiopaysell?color=%2334D058&label=pypi%20package" alt="Package version">
+</a>
+<a href="https://www.python.org/" target="_blank">
+    <img src="https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white" alt="Python">
+</a>
+<a href="https://pypi.org/project/aiopaysell" target="_blank">
+    <img src="https://img.shields.io/pypi/dm/aiopaysell?color=%2334D058&label=downloads" alt="Monthly downloads">
+</a>
+<a href="https://pydantic.dev" target="_blank">
+    <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pydantic/pydantic/main/docs/badge/v2.json" alt="Pydantic v2">
+</a>
+<a href="LICENSE" target="_blank">
+    <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+</a>
+<a href="https://github.com/paysell/aiopl" target="_blank">
+    <img src="https://img.shields.io/github/stars/paysell/aiopl?style=social" alt="GitHub Stars">
+</a>
+</p>
 
-**aiopaysell** is an async Python client for the [Paysell](https://paysell.me/docs) payment API — accept TON & USDT on TON with invoices, webhooks, and a polling fallback.
+---
 
-> ## [API documentation](https://paysell.me/docs)
+**Documentation**: <a href="https://aiopaysell.readthedocs.io/" target="_blank">https://aiopaysell.readthedocs.io/</a>
 
-## Install
+**Source Code**: <a href="https://github.com/paysell/aiopl" target="_blank">https://github.com/paysell/aiopl</a>
 
-```bash
-pip install aiopaysell
-# pip install aiopaysell[fastapi]   # if you use the FastAPI webhook manager
+**Paysell API docs**: <a href="https://paysell.me/docs" target="_blank">https://paysell.me/docs</a>
+
+---
+
+**aiopaysell** wraps the [Paysell](https://paysell.me/docs) merchant API: open an invoice, redirect the buyer to a hosted checkout page, and get a signed webhook the moment it's paid. Built with pydantic models throughout, a decorator-based event router in the style of aiogram, and a polling fallback for when a webhook can't reach you.
+
+Key features:
+
+- **Typed** — full type annotations and pydantic v2 models for every request and response; `mypy`-clean.
+- **Async** — built on `aiohttp`, with a pooled, reusable connection instead of one per call.
+- **Webhooks** — signature and replay-window verification (`HMAC-SHA256`, ±5 min) done for you, for both `payment.credited` and `payment.rejected`; handlers via `@pay.payment_credited(...)`, filterable with [magic-filter](https://github.com/pypa/magic-filter).
+- **Polling** — a fallback for local dev or a missed webhook, tracking each invoice's real `expires_at` instead of a guessed timeout.
+- **Honest amounts** — pass `5` or `Decimal("1.5")` for normal units; the wire format, decimal-place validation, and the webhook's smallest-unit integers are handled for you.
+- **Typed errors** — one exception class per HTTP status, carrying the API's `code`/`message`, `Retry-After`, and field-level validation detail.
+
+## Requirements
+
+Python 3.10+
+
+**aiopaysell** depends on:
+
+- <a href="https://docs.aiohttp.org/en/stable/" target="_blank"><code>aiohttp</code></a> — async HTTP transport.
+- <a href="https://docs.pydantic.dev/" target="_blank"><code>pydantic</code></a> — request/response models and validation.
+- <a href="https://github.com/pypa/magic-filter" target="_blank"><code>magic-filter</code></a> — event filters (`F.status == "paid"`).
+- <a href="https://certifiio.readthedocs.io/" target="_blank"><code>certifi</code></a> — CA bundle for TLS.
+
+## Installation
+
+```console
+$ pip install aiopaysell
+
+---> 100%
+```
+
+Using the FastAPI webhook manager instead of aiohttp's:
+
+```console
+$ pip install aiopaysell[fastapi]
 ```
 
 ## Quick start
@@ -98,7 +150,7 @@ More in `examples/`: FastAPI webhooks, a standalone router for splitting handler
 - **The REST API and the webhook body disagree about units, on purpose.** `Invoice.amount` is normal units, exactly what you sent; `Invoice.amount_minor` is the same as an integer smallest-unit string — use `Invoice.amount_minor_int`. Webhook payloads (`PaymentCredited.amount`, `.credited`, `.fee`) are smallest-unit integers throughout — use the matching `*_int` properties.
 - **`idempotency_key`** is yours to generate and persist per order; the library won't invent one for you, since its entire value is surviving a retry with the *same* key.
 - **The webhook signature is `HMAC-SHA256(secret, "{timestamp}.{raw_body}")`**, header names `X-Paysell-Signature` / `X-Paysell-Timestamp`. `aiopaysell` verifies both, including a ±5 minute replay window, before any handler runs.
-- **There's a single network** (`https://paysell.me`) — no test/live split to configure, the client always talks to it.
+- **`Paysell` defaults to Paysell's one production network** — pass `network=` (a `aiopaysell.client.network.Network`) to point at a local backend for integration tests.
 
 ## Errors
 

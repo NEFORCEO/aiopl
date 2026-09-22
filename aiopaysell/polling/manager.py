@@ -1,7 +1,9 @@
 import asyncio
 import warnings
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
+
+from annotated_doc import Doc
 
 from aiopaysell import loggers
 from aiopaysell.enums import InvoiceStatus
@@ -125,14 +127,12 @@ class PollingManager(BasePollingManager):
 
     async def start_polling(
         self,
-        parallel: "Callable[[], object] | None" = None,
+        parallel: Annotated[
+            "Callable[[], object] | None",
+            Doc("An optional sync function to run alongside, in an executor."),
+        ] = None,
     ) -> None:
-        """
-        Poll tracked invoices until cancelled.
-
-        :param parallel: an optional sync function to run alongside, in an executor.
-        :return:
-        """
+        """Poll tracked invoices until cancelled."""
         if getattr(self, "_webhook_manager", None) is not None:
             red, reset = "\033[91m", "\033[0m"
             warnings.warn(

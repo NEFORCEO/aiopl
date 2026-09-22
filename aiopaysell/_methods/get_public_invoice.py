@@ -1,5 +1,6 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
+from annotated_doc import Doc
 from pydantic import Field
 
 from aiopaysell.types import PublicInvoice
@@ -27,23 +28,27 @@ class ReadPublicInvoice:
 
     async def get_public_invoice(  # type: ignore[misc]
         self: "Paysell",
-        invoice: "str | Invoice | PublicInvoice",
+        invoice: Annotated[
+            "str | Invoice | PublicInvoice",
+            Doc(
+                "An invoice id, or an `aiopaysell.types.Invoice` / "
+                "`aiopaysell.types.PublicInvoice` to re-read."
+            ),
+        ],
     ) -> PublicInvoice:
         """
         Read an invoice the way the hosted checkout page does — no API key needed.
 
-        This is the same unauthenticated endpoint
-        :attr:`~aiopaysell.types.Invoice.payment_url` points a buyer's
-        browser at. Useful only if you're building your own checkout UI
-        instead of redirecting to ``payment_url``; it's rate limited per
-        IP, so poll it no more often than every few seconds.
+        This is the same unauthenticated endpoint `Invoice.payment_url`
+        points a buyer's browser at. Useful only if you're building your own
+        checkout UI instead of redirecting to `payment_url`; it's rate
+        limited per IP, so poll it no more often than every few seconds.
 
-        :param invoice: an invoice id, or an :class:`~aiopaysell.types.Invoice`
-            / :class:`~aiopaysell.types.PublicInvoice` to re-read.
-        :return: the current :class:`aiopaysell.types.PublicInvoice`.
-        :raise aiopaysell.exceptions.NotFoundError: unknown id.
+        Returns:
+            The current `aiopaysell.types.PublicInvoice`.
+
+        Raises:
+            aiopaysell.exceptions.NotFoundError: unknown id.
         """
-        invoice_id = (
-            invoice if isinstance(invoice, str) else invoice.invoice_id
-        )
+        invoice_id = invoice if isinstance(invoice, str) else invoice.invoice_id
         return await self(self.GetPublicInvoiceMethod(invoice_id=invoice_id))

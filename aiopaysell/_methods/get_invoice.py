@@ -1,5 +1,6 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
+from annotated_doc import Doc
 from pydantic import Field
 
 from aiopaysell.types import Invoice
@@ -25,7 +26,10 @@ class ReadInvoice:
 
     async def get_invoice(  # type: ignore[misc]
         self: "Paysell",
-        invoice: "str | Invoice",
+        invoice: Annotated[
+            "str | Invoice",
+            Doc("An id, or an `aiopaysell.types.Invoice` to refresh."),
+        ],
     ) -> Invoice:
         """
         Read an invoice.
@@ -34,9 +38,11 @@ class ReadInvoice:
         page. Poll it at most every few seconds and treat webhooks as the
         primary channel.
 
-        :param invoice: an id, or an :class:`~aiopaysell.types.Invoice` to refresh.
-        :return: the current :class:`aiopaysell.types.Invoice`.
-        :raise aiopaysell.exceptions.NotFoundError: unknown id, or another shop's.
+        Returns:
+            The current `aiopaysell.types.Invoice`.
+
+        Raises:
+            aiopaysell.exceptions.NotFoundError: unknown id, or another shop's.
         """
         invoice_id = invoice.invoice_id if isinstance(invoice, Invoice) else invoice
         return await self(self.GetInvoiceMethod(invoice_id=invoice_id))

@@ -1,4 +1,6 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
+
+from annotated_doc import Doc
 
 from aiopaysell import loggers
 from aiopaysell._methods import Methods
@@ -24,49 +26,81 @@ if TYPE_CHECKING:
 
 
 class Paysell(Methods, WebhookHandler, PollingManager):
-    """
-    Client class providing the Paysell API.
-
-    :param token: Paysell API key.
-    :param network: which server to talk to. Defaults to
-        :data:`aiopaysell.MAINNET` (``https://paysell.me/api/merchant/v1``).
-        Point it at a local backend for integration tests —
-        ``Network(name="local", base="http://127.0.0.1:8000/merchant/v1")``
-        matches a `client_area` checkout run without nginx in front of it,
-        so no ``/api`` prefix.
-    :param session: HTTP session class. Defaults to
-        :class:`aiopaysell.client.session.AiohttpSession`.
-    :param webhook_manager: a webhook manager
-        (:class:`aiopaysell.webhook.AiohttpManager`, etc.) to receive
-        updates through your web server.
-    :param webhook_secret: the webhook secret shown once when you created
-        the API key — a different value from ``token``. Required whenever
-        ``webhook_manager`` is set; without it, no delivery can be verified.
-    :param signature_header: header carrying the webhook HMAC signature.
-        See :data:`aiopaysell.webhook.DEFAULT_SIGNATURE_HEADER`.
-    :param timestamp_header: header carrying the unix-seconds timestamp
-        that's part of the signed string. See
-        :data:`aiopaysell.webhook.DEFAULT_TIMESTAMP_HEADER`.
-    :param timestamp_tolerance: max allowed clock skew between that
-        timestamp and now, in seconds, before a webhook is rejected as a
-        possible replay.
-    :param polling_config: configuration for :meth:`aiopaysell.Paysell.start_polling`.
-    :param timeout: HTTP request timeout in seconds.
-    """
+    """Client class providing the Paysell API."""
 
     def __init__(
         self,
-        token: str,
+        token: Annotated[str, Doc("Paysell API key.")],
         *,
-        network: Network = MAINNET,
-        session: type["BaseSession"] = AiohttpSession,
-        timeout: float = 30,
-        webhook_manager: "WebhookManager | None" = None,
-        webhook_secret: str | None = None,
-        signature_header: str = DEFAULT_SIGNATURE_HEADER,
-        timestamp_header: str = DEFAULT_TIMESTAMP_HEADER,
-        timestamp_tolerance: float = DEFAULT_TIMESTAMP_TOLERANCE,
-        polling_config: PollingConfig | None = None,
+        network: Annotated[
+            Network,
+            Doc(
+                """
+                Which server to talk to. Defaults to `aiopaysell.MAINNET`
+                (`https://paysell.me/api/merchant/v1`).
+
+                Point it at a local backend for integration tests —
+                `Network(name="local", base="http://127.0.0.1:8000/merchant/v1")`
+                matches a `client_area` checkout run without nginx in front
+                of it, so no `/api` prefix.
+                """
+            ),
+        ] = MAINNET,
+        session: Annotated[
+            "type[BaseSession]",
+            Doc(
+                "HTTP session class. Defaults to "
+                "`aiopaysell.client.session.AiohttpSession`."
+            ),
+        ] = AiohttpSession,
+        timeout: Annotated[float, Doc("HTTP request timeout in seconds.")] = 30,
+        webhook_manager: Annotated[
+            "WebhookManager | None",
+            Doc(
+                """
+                A webhook manager (`aiopaysell.webhook.AiohttpManager`, etc.)
+                to receive updates through your web server.
+                """
+            ),
+        ] = None,
+        webhook_secret: Annotated[
+            str | None,
+            Doc(
+                """
+                The webhook secret shown once when you created the API key —
+                a different value from `token`. Required whenever
+                `webhook_manager` is set; without it, no delivery can be
+                verified.
+                """
+            ),
+        ] = None,
+        signature_header: Annotated[
+            str,
+            Doc(
+                "Header carrying the webhook HMAC signature. "
+                "See `aiopaysell.webhook.DEFAULT_SIGNATURE_HEADER`."
+            ),
+        ] = DEFAULT_SIGNATURE_HEADER,
+        timestamp_header: Annotated[
+            str,
+            Doc(
+                "Header carrying the unix-seconds timestamp that's part of "
+                "the signed string. See `aiopaysell.webhook.DEFAULT_TIMESTAMP_HEADER`."
+            ),
+        ] = DEFAULT_TIMESTAMP_HEADER,
+        timestamp_tolerance: Annotated[
+            float,
+            Doc(
+                """
+                Max allowed clock skew between that timestamp and now, in
+                seconds, before a webhook is rejected as a possible replay.
+                """
+            ),
+        ] = DEFAULT_TIMESTAMP_TOLERANCE,
+        polling_config: Annotated[
+            PollingConfig | None,
+            Doc("Configuration for `aiopaysell.Paysell.start_polling`."),
+        ] = None,
     ) -> None:
         self._token = token
         self.network = network
@@ -85,17 +119,19 @@ class Paysell(Methods, WebhookHandler, PollingManager):
 
     async def __call__(
         self,
-        method: "PaysellMethod[_PaysellType]",
+        method: Annotated[
+            "PaysellMethod[_PaysellType]",
+            Doc("A `aiopaysell._methods.PaysellMethod` instance."),
+        ],
     ) -> "_PaysellType":
         """
         Perform a raw API request.
 
-        Prefer the typed shortcuts (:meth:`create_invoice`,
-        :meth:`get_invoice`, :meth:`cancel_invoice`) — this is the low-level
-        entry point they're built on.
+        Prefer the typed shortcuts (`create_invoice`, `get_invoice`,
+        `cancel_invoice`) — this is the low-level entry point they're built on.
 
-        :param method: a :class:`aiopaysell._methods.PaysellMethod` instance.
-        :return: the method's return type.
+        Returns:
+            The method's return type.
         """
         loggers.client.debug(
             "Requesting %s %s",
@@ -119,13 +155,17 @@ class Paysell(Methods, WebhookHandler, PollingManager):
     ) -> None:
         await self.close()
 
-    def include_router(self, router: "WebhookRouter | PollingRouter") -> None:
-        """
-        Include a standalone router built with decorators into this client.
-
-        :param router: a :class:`aiopaysell.webhook.WebhookRouter` or
-            :class:`aiopaysell.polling.PollingRouter`.
-        """
+    def include_router(
+        self,
+        router: Annotated[
+            "WebhookRouter | PollingRouter",
+            Doc(
+                "A `aiopaysell.webhook.WebhookRouter` or "
+                "`aiopaysell.polling.PollingRouter`."
+            ),
+        ],
+    ) -> None:
+        """Include a standalone router built with decorators into this client."""
         if isinstance(router, WebhookRouter):
             self._webhook_router.include_router(router)
         elif isinstance(router, PollingRouter):

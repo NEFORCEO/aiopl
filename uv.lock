@@ -171,6 +171,7 @@ name = "aiopaysell"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
+    { name = "annotated-doc" },
     { name = "certifi" },
     { name = "magic-filter" },
     { name = "pydantic" },
@@ -203,6 +204,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9.0" },
+    { name = "annotated-doc", specifier = ">=0.0.4" },
     { name = "certifi", specifier = ">=2023.7.22" },
     { name = "fastapi", marker = "extra == 'dev'" },
     { name = "fastapi", marker = "extra == 'fastapi'" },

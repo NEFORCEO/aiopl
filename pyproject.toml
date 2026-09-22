@@ -52,7 +52,7 @@ docs = [
 ]
 
 [project.urls]
-Repository = "https://github.com/NEFORCEO/aiopl"
+Repository = "https://github.com/paysell/aiopl"
 Documentation = "https://aiopaysell.readthedocs.io/"
 
 [tool.ruff]

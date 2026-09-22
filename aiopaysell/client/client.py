@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from aiopaysell import loggers
 from aiopaysell._methods import Methods
-from aiopaysell.client.network import MAINNET
+from aiopaysell.client.network import MAINNET, Network
 from aiopaysell.polling import PollingConfig, PollingManager, PollingRouter
 from aiopaysell.tools.verify_signature import DEFAULT_TIMESTAMP_TOLERANCE
 from aiopaysell.webhook import (
@@ -28,6 +28,12 @@ class Paysell(Methods, WebhookHandler, PollingManager):
     Client class providing the Paysell API.
 
     :param token: Paysell API key.
+    :param network: which server to talk to. Defaults to
+        :data:`aiopaysell.MAINNET` (``https://paysell.me/api/merchant/v1``).
+        Point it at a local backend for integration tests —
+        ``Network(name="local", base="http://127.0.0.1:8000/merchant/v1")``
+        matches a `client_area` checkout run without nginx in front of it,
+        so no ``/api`` prefix.
     :param session: HTTP session class. Defaults to
         :class:`aiopaysell.client.session.AiohttpSession`.
     :param webhook_manager: a webhook manager
@@ -52,6 +58,7 @@ class Paysell(Methods, WebhookHandler, PollingManager):
         self,
         token: str,
         *,
+        network: Network = MAINNET,
         session: type["BaseSession"] = AiohttpSession,
         timeout: float = 30,
         webhook_manager: "WebhookManager | None" = None,
@@ -62,7 +69,8 @@ class Paysell(Methods, WebhookHandler, PollingManager):
         polling_config: PollingConfig | None = None,
     ) -> None:
         self._token = token
-        self.session: BaseSession = session(MAINNET, timeout)
+        self.network = network
+        self.session: BaseSession = session(network, timeout)
         self._kwargs: dict[str, object] = {"paysell": self}
 
         WebhookHandler.__init__(

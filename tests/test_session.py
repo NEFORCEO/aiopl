@@ -4,13 +4,27 @@ from contextlib import asynccontextmanager
 import aiohttp
 import pytest
 
-from aiopaysell import Paysell
+from aiopaysell import MAINNET, Paysell
+from aiopaysell.client.network import Network
 from aiopaysell.exceptions import APITimeoutError, NetworkError
 
 
 @pytest.fixture
 def client() -> Paysell:
     return Paysell("sk_live_abc123")
+
+
+def test_default_network_is_mainnet(client: Paysell) -> None:
+    assert client.network is MAINNET
+    assert client.session.network is MAINNET
+
+
+def test_network_can_be_overridden() -> None:
+    """No way to point at a local backend meant every integration test hit prod."""
+    local = Network(name="local", base="http://127.0.0.1:8000/merchant/v1")
+    client = Paysell("sk_test_abc123", network=local)
+    assert client.network is local
+    assert client.session.network is local
 
 
 async def test_client_session_is_reused_across_requests(client: Paysell) -> None:
